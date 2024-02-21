@@ -50,6 +50,36 @@ final class ViewControllerTests: XCTestCase {
         wait(for: [expectation], timeout: 1.0)
     }
 
+    func testFetchPurchaseHistoryFailed() {
+        MockURLProtocol.requestHandler = { request in
+            let response = HTTPURLResponse(url: request.url!, statusCode: 403, httpVersion: nil, headerFields: nil)!
+            return (response, Data())
+        }
+
+        let expectation = self.expectation(description: "FetchPurchaseHistory fails")
+
+        Task {
+            do {
+                _ = try await viewController.fetchPurchaseHistory()
+                XCTFail("Expected fetch to fail with error, but succeeded")
+            } catch {
+                if let someError = error as? ViewController.SomeError {
+                    switch someError {
+                    case .responseError:
+                        break
+                    default:
+                        XCTFail("Received unexpected error type: \(someError)")
+                    }
+                } else {
+                    XCTFail("Received unexpected error: \(error)")
+                }
+                expectation.fulfill()
+            }
+        }
+
+        wait(for: [expectation], timeout: 1.0)
+    }
+
     func testNumberOfRowsInTableViewMatchesPurchaseHistory() {
         MockURLProtocol.requestHandler = { request in
             guard let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil),
@@ -73,6 +103,28 @@ final class ViewControllerTests: XCTestCase {
             }
         }
 
+        wait(for: [expectation], timeout: 5.0)
+    }
+
+    func testNumberOfRowsInTableViewMatchesPurchaseHistoryOnFailure() {
+        MockURLProtocol.requestHandler = { request in
+            let response = HTTPURLResponse(url: request.url!, statusCode: 404, httpVersion: nil, headerFields: nil)!
+            return (response, Data())
+        }
+
+        let expectation = self.expectation(description: "Data failed to load")
+
+        Task {
+            await MainActor.run {
+                self.viewController.viewDidLoad()
+
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                    XCTAssertEqual(self.viewController.tableView.numberOfRows(inSection: 0), 0, "Table view should have 0 rows after a failed fetch")
+                    expectation.fulfill()
+                }
+            }
+        }
+        
         wait(for: [expectation], timeout: 5.0)
     }
 }
