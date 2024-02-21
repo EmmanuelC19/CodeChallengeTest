@@ -10,7 +10,6 @@ import Foundation
 
 class MockURLProtocol: URLProtocol {
     static var requestHandler: ((URLRequest) throws -> (HTTPURLResponse, Data))?
-    var useMockData = true
 
     override class func canInit(with request: URLRequest) -> Bool {
         return true
@@ -21,26 +20,18 @@ class MockURLProtocol: URLProtocol {
     }
 
     override func startLoading() {
-        guard !useMockData else {
-            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
-            let data = encodeMockData() 
-            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-            client?.urlProtocol(self, didLoad: data!)
-            client?.urlProtocolDidFinishLoading(self)
-            return
-        }
-
-        guard let handler = MockURLProtocol.requestHandler else {
+        guard let client = client, let handler = MockURLProtocol.requestHandler else {
             fatalError("Handler is unavailable.")
         }
 
         do {
             let (response, data) = try handler(request)
-            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-            client?.urlProtocol(self, didLoad: data)
-            client?.urlProtocolDidFinishLoading(self)
+
+            client.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client.urlProtocol(self, didLoad: data)
+            client.urlProtocolDidFinishLoading(self)
         } catch {
-            client?.urlProtocol(self, didFailWithError: error)
+            client.urlProtocol(self, didFailWithError: error)
         }
     }
 

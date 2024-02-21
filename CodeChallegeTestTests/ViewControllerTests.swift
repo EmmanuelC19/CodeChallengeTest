@@ -26,6 +26,15 @@ final class ViewControllerTests: XCTestCase {
     }
 
     func testFetchPurchaseHistorySuccess() {
+        MockURLProtocol.requestHandler = { request in
+            guard let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil),
+                  let data = MockURLProtocol().encodeMockData() else {
+                XCTFail("expected mockProtocol to be implemented")
+                return (HTTPURLResponse(), Data())
+            }
+            return (response, data)
+        }
+
         let expectation = self.expectation(description: "FetchPurchaseHistory succeeds")
         Task {
             do {
@@ -42,19 +51,28 @@ final class ViewControllerTests: XCTestCase {
     }
 
     func testNumberOfRowsInTableViewMatchesPurchaseHistory() {
-            let expectation = self.expectation(description: "Data showing")
+        MockURLProtocol.requestHandler = { request in
+            guard let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil),
+                  let data = MockURLProtocol().encodeMockData() else {
+                XCTFail("expected mockProtocol to be implemented")
+                return (HTTPURLResponse(), Data())
+            }
+            return (response, data)
+        }
 
-            Task {
-                await MainActor.run {
-                    viewController.viewDidLoad()
+        let expectation = self.expectation(description: "Data showing")
 
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                        XCTAssertEqual(self.viewController.tableView.numberOfRows(inSection: 0), self.viewController.purchaseHistory.count)
-                        expectation.fulfill()
-                    }
+        Task {
+            await MainActor.run {
+                viewController.viewDidLoad()
+
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                    XCTAssertEqual(self.viewController.tableView.numberOfRows(inSection: 0), self.viewController.purchaseHistory.count)
+                    expectation.fulfill()
                 }
             }
-
-            wait(for: [expectation], timeout: 5.0)
         }
+
+        wait(for: [expectation], timeout: 5.0)
+    }
 }
